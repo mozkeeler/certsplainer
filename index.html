@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>certsplainer: x509 certificate viewer</title>
+  <link rel="stylesheet" type="text/css" href="index.css">
+  <script src="forge/js/asn1.js"></script>
+  <script src="forge/js/jsbn.js"></script>
+  <script src="forge/js/md.js"></script>
+  <script src="forge/js/oids.js"></script>
+  <script src="forge/js/pem.js"></script>
+  <script src="forge/js/pki.js"></script>
+  <script src="forge/js/rsa.js"></script>
+  <script src="forge/js/sha1.js"></script>
+  <script src="forge/js/sha256.js"></script>
+  <script src="forge/js/sha512.js"></script>
+  <script src="forge/js/util.js"></script>
+  <script src="forge/js/x509.js"></script>
+</head>
+<body>
+  <table>
+    <tr><td>version:</td><td id="version"></td></tr>
+    <tr><td>serial number:</td><td id="serialNumber"></td></tr>
+    <tr><td>issuer:</td><td id="issuer"></td></tr>
+    <tr><td>subject:</td><td id="subject"></td></tr>
+    <tr><td>not before:</td><td id="notBefore"</td></tr>
+    <tr><td>not after:</td><td id="notAfter"</td></tr>
+    <tr><td>subject alternative names:</td><td id="subjectAltNames"></td></tr>
+    <tr><td>signature algorithm:</td><td id="signatureAlgorithm"></td></tr>
+    <tr><td>key size:</td><td id="keySize"></td></tr>
+    <tr><td>exponent:</td><td id="exponent"></td></tr>
+  </table>
+  <textarea rows=25 cols=66 id="pem" readonly></textarea>
+  <script src="index.js" type="application/javascript;version=1.7"></script>
+</body>
+</html>
