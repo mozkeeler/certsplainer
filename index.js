@@ -15,6 +15,10 @@ function setViolation(field) {
   document.getElementById(field).setAttribute("violation", true);
 }
 
+function unsetViolation(field) {
+  document.getElementById(field).removeAttribute("violation");
+}
+
 function formatRDN(rdn) {
   let result = "";
   rdn.attributes.forEach(function(attribute) {
@@ -49,36 +53,70 @@ function formatSubjectAltNames(altNames) {
   return result;
 }
 
-let cert = forge.pki.certificateFromPem(pem);
-setField("version", cert.version + 1);
-if ((cert.version + 1) != 3) {
-  setViolation("version");
+function clearFields() {
+  for (let id of ["version", "serialNumber", "issuer", "subject", "notBefore",
+                  "notAfter", "subjectAltNames", "signatureAlgorithm",
+                  "keySize", "exponent"] ) {
+    setField(id, "");
+    unsetViolation(id);
+  }
 }
-setField("serialNumber", cert.serialNumber);
-setField("issuer", formatRDN(cert.issuer));
-setField("subject", formatRDN(cert.subject));
-setField("notBefore", cert.validity.notBefore);
-setField("notAfter", cert.validity.notAfter);
-if ((cert.validity.notAfter - cert.validity.notBefore) /
-    (1000 * 3600 * 24 * 366) > 5) {
-  setViolation("notBefore");
-  setViolation("notAfter");
+
+function decode(pem) {
+  clearFields();
+
+  let cert = null;
+  try {
+    cert = forge.pki.certificateFromPem(pem);
+  } catch (e) {}
+  // Try with the BEGIN/END wrappers if the above failed
+  if (!cert) {
+    cert = forge.pki.certificateFromPem("-----BEGIN CERTIFICATE-----" + pem +
+                                        "-----END CERTIFICATE-----");
+  }
+  setField("version", cert.version + 1);
+  if ((cert.version + 1) != 3) {
+    setViolation("version");
+  }
+  setField("serialNumber", cert.serialNumber);
+  setField("issuer", formatRDN(cert.issuer));
+  setField("subject", formatRDN(cert.subject));
+  setField("notBefore", cert.validity.notBefore);
+  setField("notAfter", cert.validity.notAfter);
+  if ((cert.validity.notAfter - cert.validity.notBefore) /
+      (1000 * 3600 * 24 * 366) > 5) {
+    setViolation("notBefore");
+    setViolation("notAfter");
+  }
+  setField("subjectAltNames",
+           formatSubjectAltNames(cert.getExtension({name: 'subjectAltName'})));
+  if (!cert.getExtension({name: 'subjectAltName'})) {
+    setViolation("subjectAltNames");
+  }
+  setField("signatureAlgorithm", forge.pki.oids[cert.signatureOid]);
+  if (forge.pki.oids[cert.signatureOid] == "sha1WithRSAEncryption") {
+    setViolation("signatureAlgorithm");
+  }
+  setField("keySize", cert.publicKey.n.bitLength());
+  if (cert.publicKey.n.bitLength() <= 1024) {
+    setViolation("keySize");
+  }
+  setField("exponent", cert.publicKey.e.toString());
+  if (cert.publicKey.e.toString() == "3") {
+    setViolation("exponent");
+  }
+  setField("pem", forge.pki.certificateToPem(cert));
 }
-setField("subjectAltNames",
-         formatSubjectAltNames(cert.getExtension({name: 'subjectAltName'})));
-if (!cert.getExtension({name: 'subjectAltName'})) {
-  setViolation("subjectAltNames");
+
+function decodeFromInput() {
+  let pem = document.getElementById("pem").value;
+  decode(pem);
 }
-setField("signatureAlgorithm", forge.pki.oids[cert.signatureOid]);
-if (forge.pki.oids[cert.signatureOid] == "sha1WithRSAEncryption") {
-  setViolation("signatureAlgorithm");
+
+function handleFile(file) {
+  let reader = new FileReader();
+  reader.onload = function() { decode(reader.result); };
+  reader.readAsText(file);
 }
-setField("keySize", cert.publicKey.n.bitLength());
-if (cert.publicKey.n.bitLength() < 1024) {
-  setViolation("keySize");
-}
-setField("exponent", cert.publicKey.e.toString());
-if (cert.publicKey.e.toString() == "3") {
-  setViolation("exponent");
-}
-setField("pem", forge.pki.certificateToPem(cert));
+
+decode(location.search ? location.search.substring(1) : pem);
