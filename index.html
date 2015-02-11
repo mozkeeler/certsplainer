@@ -30,7 +30,11 @@
     <tr><td>key size:</td><td id="keySize"></td></tr>
     <tr><td>exponent:</td><td id="exponent"></td></tr>
   </table>
-  <textarea rows=25 cols=66 id="pem" readonly></textarea>
+  <textarea rows=25 cols=66 id="pem"></textarea>
+  <div>
+    <input type="button" value="Decode" onclick="decodeFromInput();"></input>
+    <input type="file" id="file" onchange="handleFile(this.files[0]);"></input>
+  </div>
   <script src="index.js" type="application/javascript;version=1.7"></script>
 </body>
 </html>
