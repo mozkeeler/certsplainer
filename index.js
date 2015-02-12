@@ -23,8 +23,8 @@ function formatRDN(rdn) {
   let result = "";
   rdn.attributes.forEach(function(attribute) {
     if (attribute.shortName) {
-      let spacer = result.length ? " / " : "";
-      result += spacer + attribute.shortName + ":" + attribute.value;
+      let spacer = result.length ? ", " : "";
+      result += spacer + attribute.shortName + "=" + attribute.value;
     }
   });
   return result;
