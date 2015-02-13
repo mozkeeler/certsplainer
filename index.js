@@ -33,8 +33,8 @@ function formatRDN(rdn) {
 function formatAltName(altName) {
   switch (altName.type) {
     case 2: return "DNS name:" + altName.value;
-    case 7: return "IP address:" + altName.value;
-    default: return "unsupported:" + altName.value;
+    case 7: return "IP address:" + altName.ip;
+    default: return "(unsupported)";
   }
 }
 
