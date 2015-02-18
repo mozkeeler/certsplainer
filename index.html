@@ -7,17 +7,22 @@
   <script src="forge/js/forge.min.js"></script>
 </head>
 <body>
-  <table>
+  <p>Basic certificate information:</p>
+  <table class="fixed">
     <tr><td>version:</td><td id="version"></td></tr>
     <tr><td>serial number:</td><td id="serialNumber"></td></tr>
+    <tr><td>signature:</td><td id="signature"></td></tr>
     <tr><td>issuer:</td><td id="issuer"></td></tr>
-    <tr><td>subject:</td><td id="subject"></td></tr>
     <tr><td>not before:</td><td id="notBefore"</td></tr>
     <tr><td>not after:</td><td id="notAfter"</td></tr>
+    <tr><td>subject:</td><td id="subject"></td></tr>
     <tr><td>subject alternative names:</td><td id="subjectAltNames"></td></tr>
     <tr><td>signature algorithm:</td><td id="signatureAlgorithm"></td></tr>
     <tr><td>key size:</td><td id="keySize"></td></tr>
     <tr><td>exponent:</td><td id="exponent"></td></tr>
+  </table>
+  <p>Certificate extensions:</p>
+  <table id="extensions" class="fixed">
   </table>
   <textarea rows=25 cols=66 id="pem"></textarea>
   <div>

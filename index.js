@@ -54,16 +54,88 @@ function formatSubjectAltNames(altNames) {
 }
 
 function clearFields() {
-  for (let id of ["version", "serialNumber", "issuer", "subject", "notBefore",
-                  "notAfter", "subjectAltNames", "signatureAlgorithm",
-                  "keySize", "exponent"] ) {
+  for (let id of ["version", "serialNumber", "signature", "issuer", "notBefore",
+                  "notAfter", "subject", "subjectAltNames",
+                  "signatureAlgorithm", "keySize", "exponent"]) {
     setField(id, "");
     unsetViolation(id);
   }
 }
 
+function clearExtensions() {
+  let extensionsTable = document.getElementById("extensions");
+  while (extensionsTable.children.length > 0) {
+    extensionsTable.children[0].remove();
+  }
+}
+
+function byteStringToHex(byteString) {
+  let result = "";
+  for (let i = 0; i < byteString.length; i++) {
+    let hex = byteString.charCodeAt(i).toString(16);
+    if (hex.length < 2) {
+      hex = "0" + hex;
+    }
+    result += (result.length > 0 ? " " : "") + hex;
+  }
+  return result;
+}
+
+function formatBasicConstraints(extension) {
+  let result = "cA: " + extension.cA;
+  if ("pathLenConstraint" in extension) {
+    result += ", pathLenConstraint: " + extension.pathLenConstraint;
+  }
+  return result;
+}
+
+function formatKeyUsage(extension) {
+  let result = "";
+  for (let usage of ["digitalSignature", "nonRepudiation", "keyEncipherment",
+                     "dataEncipherment", "keyAgreement", "keyCertSign"]) {
+    if (extension[usage]) {
+      result += (result.length > 0 ? ", " : "") + usage;
+    }
+  }
+  return result;
+}
+
+function formatExtKeyUsage(extension) {
+  let result = "";
+  for (let usage of ["serverAuth"]) {
+    if (extension[usage]) {
+      result += (result.length > 0 ? ", " : "") + usage;
+    }
+  }
+  return result;
+}
+
+function formatSubjectKeyIdentifier(extension) {
+  return extension.subjectKeyIdentifier;
+}
+
+function formatSubjectAltName(extension) {
+  return formatSubjectAltNames(extension);
+}
+
+function extensionToString(extension) {
+  switch (extension.name) {
+    case "basicConstraints": return formatBasicConstraints(extension);
+    case "keyUsage": return formatKeyUsage(extension);
+    case "extKeyUsage": return formatExtKeyUsage(extension);
+    case "subjectKeyIdentifier": return formatSubjectKeyIdentifier(extension);
+    case "subjectAltName": return formatSubjectAltName(extension);
+    case "authorityKeyIdentifier":
+    case "certificatePolicies":
+    case "cRLDistributionPoints":
+    case "issuerAltName":
+    default: return byteStringToHex(extension.value);
+  }
+}
+
 function decode(pem) {
   clearFields();
+  clearExtensions();
 
   let cert = null;
   try {
@@ -79,8 +151,8 @@ function decode(pem) {
     setViolation("version");
   }
   setField("serialNumber", cert.serialNumber);
+  setField("signature", forge.pki.oids[cert.siginfo.algorithmOid]);
   setField("issuer", formatRDN(cert.issuer));
-  setField("subject", formatRDN(cert.subject));
   setField("notBefore", cert.validity.notBefore);
   setField("notAfter", cert.validity.notAfter);
   if ((cert.validity.notAfter - cert.validity.notBefore) /
@@ -88,13 +160,15 @@ function decode(pem) {
     setViolation("notBefore");
     setViolation("notAfter");
   }
+  setField("subject", formatRDN(cert.subject));
   setField("subjectAltNames",
            formatSubjectAltNames(cert.getExtension({name: 'subjectAltName'})));
   if (!cert.getExtension({name: 'subjectAltName'})) {
     setViolation("subjectAltNames");
   }
   setField("signatureAlgorithm", forge.pki.oids[cert.signatureOid]);
-  if (forge.pki.oids[cert.signatureOid] == "sha1WithRSAEncryption") {
+  if (forge.pki.oids[cert.signatureOid] != "sha256WithRSAEncryption" &&
+      forge.pki.oids[cert.signatureOid] != "sha512WithRSAEncryption") {
     setViolation("signatureAlgorithm");
   }
   setField("keySize", cert.publicKey.n.bitLength());
@@ -105,7 +179,21 @@ function decode(pem) {
   if (cert.publicKey.e.toString() == "3") {
     setViolation("exponent");
   }
-  setField("pem", forge.pki.certificateToPem(cert));
+  document.getElementById("pem").value = forge.pki.certificateToPem(cert);
+
+  let extensionsTable = document.getElementById("extensions");
+  for (let extension of cert.extensions) {
+    let tr = document.createElement("tr");
+    let tdName = document.createElement("td");
+    tdName.textContent = ("name" in extension && extension.name.length > 0
+                          ? extension.name
+                          : extension.id) + ":";
+    tr.appendChild(tdName);
+    let tdValue = document.createElement("td");
+    tdValue.textContent = extensionToString(extension);
+    tr.appendChild(tdValue);
+    extensionsTable.appendChild(tr);
+  }
 }
 
 function decodeFromInput() {
