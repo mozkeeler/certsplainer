@@ -1,3 +1,7 @@
 td[violation=true] {
   color: red;
 }
+
+table.fixed {
+  font-family: monospace;
+}
