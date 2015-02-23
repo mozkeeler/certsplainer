@@ -1,4 +1,4 @@
-let pem = "-----BEGIN CERTIFICATE-----" +
+var pem = "-----BEGIN CERTIFICATE-----" +
           "MIIBEDCBuwICAP8wDQYJKoZIhvcNAQEFBQAwFDESMBAGA1UEAxMJbG9jYWxob3N0" +
           "MB4XDTE1MDIwNjAxMDg1MFoXDTIzMDYwNjAxMDg1MFowFDESMBAGA1UEAxMJbG9j" +
           "YWxob3N0MFowDQYJKoZIhvcNAQEBBQADSQAwRgJBANOcXjAyMipXbYP3DhkFt9uH" +
@@ -20,10 +20,10 @@ function unsetViolation(field) {
 }
 
 function formatRDN(rdn) {
-  let result = "";
+  var result = "";
   rdn.attributes.forEach(function(attribute) {
     if (attribute.shortName) {
-      let spacer = result.length ? ", " : "";
+      var spacer = result.length ? ", " : "";
       result += spacer + attribute.shortName + "=" + attribute.value;
     }
   });
@@ -45,16 +45,16 @@ function formatSubjectAltNames(altNames) {
   if (!altNames.altNames || altNames.altNames.length < 1) {
     return "(empty subject alternative names extension)";
   }
-  let result = "";
+  var result = "";
   altNames.altNames.forEach(function(altName) {
-    let spacer = result.length ? ", " : "";
+    var spacer = result.length ? ", " : "";
     result += spacer + formatAltName(altName);
   });
   return result;
 }
 
 function clearFields() {
-  for (let id of ["version", "serialNumber", "signature", "issuer", "notBefore",
+  for (var id of ["version", "serialNumber", "signature", "issuer", "notBefore",
                   "notAfter", "subject", "subjectAltNames",
                   "signatureAlgorithm", "keySize", "exponent"]) {
     setField(id, "");
@@ -63,16 +63,16 @@ function clearFields() {
 }
 
 function clearExtensions() {
-  let extensionsTable = document.getElementById("extensions");
+  var extensionsTable = document.getElementById("extensions");
   while (extensionsTable.children.length > 0) {
     extensionsTable.children[0].remove();
   }
 }
 
 function byteStringToHex(byteString) {
-  let result = "";
-  for (let i = 0; i < byteString.length; i++) {
-    let hex = byteString.charCodeAt(i).toString(16);
+  var result = "";
+  for (var i = 0; i < byteString.length; i++) {
+    var hex = byteString.charCodeAt(i).toString(16);
     if (hex.length < 2) {
       hex = "0" + hex;
     }
@@ -82,7 +82,7 @@ function byteStringToHex(byteString) {
 }
 
 function formatBasicConstraints(extension) {
-  let result = "cA: " + extension.cA;
+  var result = "cA: " + extension.cA;
   if ("pathLenConstraint" in extension) {
     result += ", pathLenConstraint: " + extension.pathLenConstraint;
   }
@@ -90,8 +90,8 @@ function formatBasicConstraints(extension) {
 }
 
 function formatKeyUsage(extension) {
-  let result = "";
-  for (let usage of ["digitalSignature", "nonRepudiation", "keyEncipherment",
+  var result = "";
+  for (var usage of ["digitalSignature", "nonRepudiation", "keyEncipherment",
                      "dataEncipherment", "keyAgreement", "keyCertSign"]) {
     if (extension[usage]) {
       result += (result.length > 0 ? ", " : "") + usage;
@@ -101,8 +101,8 @@ function formatKeyUsage(extension) {
 }
 
 function formatExtKeyUsage(extension) {
-  let result = "";
-  for (let usage of ["serverAuth"]) {
+  var result = "";
+  for (var usage of ["serverAuth"]) {
     if (extension[usage]) {
       result += (result.length > 0 ? ", " : "") + usage;
     }
@@ -137,7 +137,7 @@ function decode(pem) {
   clearFields();
   clearExtensions();
 
-  let cert = null;
+  var cert = null;
   try {
     cert = forge.pki.certificateFromPem(pem);
   } catch (e) {}
@@ -181,15 +181,15 @@ function decode(pem) {
   }
   document.getElementById("pem").value = forge.pki.certificateToPem(cert);
 
-  let extensionsTable = document.getElementById("extensions");
-  for (let extension of cert.extensions) {
-    let tr = document.createElement("tr");
-    let tdName = document.createElement("td");
+  var extensionsTable = document.getElementById("extensions");
+  for (var extension of cert.extensions) {
+    var tr = document.createElement("tr");
+    var tdName = document.createElement("td");
     tdName.textContent = ("name" in extension && extension.name.length > 0
                           ? extension.name
                           : extension.id) + ":";
     tr.appendChild(tdName);
-    let tdValue = document.createElement("td");
+    var tdValue = document.createElement("td");
     tdValue.textContent = extensionToString(extension);
     tr.appendChild(tdValue);
     extensionsTable.appendChild(tr);
@@ -197,12 +197,12 @@ function decode(pem) {
 }
 
 function decodeFromInput() {
-  let pem = document.getElementById("pem").value;
+  var pem = document.getElementById("pem").value;
   decode(pem);
 }
 
 function handleFile(file) {
-  let reader = new FileReader();
+  var reader = new FileReader();
   reader.onload = function() { decode(reader.result); };
   reader.readAsText(file);
 }
