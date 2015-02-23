@@ -1,4 +1,4 @@
-let pem = "-----BEGIN CERTIFICATE-----" +
+var pem = "-----BEGIN CERTIFICATE-----" +
           "MIIBEDCBuwICAP8wDQYJKoZIhvcNAQEFBQAwFDESMBAGA1UEAxMJbG9jYWxob3N0" +
           "MB4XDTE1MDIwNjAxMDg1MFoXDTIzMDYwNjAxMDg1MFowFDESMBAGA1UEAxMJbG9j" +
           "YWxob3N0MFowDQYJKoZIhvcNAQEBBQADSQAwRgJBANOcXjAyMipXbYP3DhkFt9uH" +
@@ -20,10 +20,10 @@ function unsetViolation(field) {
 }
 
 function formatRDN(rdn) {
-  let result = "";
+  var result = "";
   rdn.attributes.forEach(function(attribute) {
     if (attribute.shortName) {
-      let spacer = result.length ? ", " : "";
+      var spacer = result.length ? ", " : "";
       result += spacer + attribute.shortName + "=" + attribute.value;
     }
   });
@@ -45,27 +45,99 @@ function formatSubjectAltNames(altNames) {
   if (!altNames.altNames || altNames.altNames.length < 1) {
     return "(empty subject alternative names extension)";
   }
-  let result = "";
+  var result = "";
   altNames.altNames.forEach(function(altName) {
-    let spacer = result.length ? ", " : "";
+    var spacer = result.length ? ", " : "";
     result += spacer + formatAltName(altName);
   });
   return result;
 }
 
 function clearFields() {
-  for (let id of ["version", "serialNumber", "issuer", "subject", "notBefore",
-                  "notAfter", "subjectAltNames", "signatureAlgorithm",
-                  "keySize", "exponent"] ) {
+  for (var id of ["version", "serialNumber", "signature", "issuer", "notBefore",
+                  "notAfter", "subject", "subjectAltNames",
+                  "signatureAlgorithm", "keySize", "exponent"]) {
     setField(id, "");
     unsetViolation(id);
   }
 }
 
+function clearExtensions() {
+  var extensionsTable = document.getElementById("extensions");
+  while (extensionsTable.children.length > 0) {
+    extensionsTable.children[0].remove();
+  }
+}
+
+function byteStringToHex(byteString) {
+  var result = "";
+  for (var i = 0; i < byteString.length; i++) {
+    var hex = byteString.charCodeAt(i).toString(16);
+    if (hex.length < 2) {
+      hex = "0" + hex;
+    }
+    result += (result.length > 0 ? " " : "") + hex;
+  }
+  return result;
+}
+
+function formatBasicConstraints(extension) {
+  var result = "cA: " + extension.cA;
+  if ("pathLenConstraint" in extension) {
+    result += ", pathLenConstraint: " + extension.pathLenConstraint;
+  }
+  return result;
+}
+
+function formatKeyUsage(extension) {
+  var result = "";
+  for (var usage of ["digitalSignature", "nonRepudiation", "keyEncipherment",
+                     "dataEncipherment", "keyAgreement", "keyCertSign"]) {
+    if (extension[usage]) {
+      result += (result.length > 0 ? ", " : "") + usage;
+    }
+  }
+  return result;
+}
+
+function formatExtKeyUsage(extension) {
+  var result = "";
+  for (var usage of ["serverAuth"]) {
+    if (extension[usage]) {
+      result += (result.length > 0 ? ", " : "") + usage;
+    }
+  }
+  return result;
+}
+
+function formatSubjectKeyIdentifier(extension) {
+  return extension.subjectKeyIdentifier;
+}
+
+function formatSubjectAltName(extension) {
+  return formatSubjectAltNames(extension);
+}
+
+function extensionToString(extension) {
+  switch (extension.name) {
+    case "basicConstraints": return formatBasicConstraints(extension);
+    case "keyUsage": return formatKeyUsage(extension);
+    case "extKeyUsage": return formatExtKeyUsage(extension);
+    case "subjectKeyIdentifier": return formatSubjectKeyIdentifier(extension);
+    case "subjectAltName": return formatSubjectAltName(extension);
+    case "authorityKeyIdentifier":
+    case "certificatePolicies":
+    case "cRLDistributionPoints":
+    case "issuerAltName":
+    default: return byteStringToHex(extension.value);
+  }
+}
+
 function decode(pem) {
   clearFields();
+  clearExtensions();
 
-  let cert = null;
+  var cert = null;
   try {
     cert = forge.pki.certificateFromPem(pem);
   } catch (e) {}
@@ -79,8 +151,8 @@ function decode(pem) {
     setViolation("version");
   }
   setField("serialNumber", cert.serialNumber);
+  setField("signature", forge.pki.oids[cert.siginfo.algorithmOid]);
   setField("issuer", formatRDN(cert.issuer));
-  setField("subject", formatRDN(cert.subject));
   setField("notBefore", cert.validity.notBefore);
   setField("notAfter", cert.validity.notAfter);
   if ((cert.validity.notAfter - cert.validity.notBefore) /
@@ -88,13 +160,15 @@ function decode(pem) {
     setViolation("notBefore");
     setViolation("notAfter");
   }
+  setField("subject", formatRDN(cert.subject));
   setField("subjectAltNames",
            formatSubjectAltNames(cert.getExtension({name: 'subjectAltName'})));
   if (!cert.getExtension({name: 'subjectAltName'})) {
     setViolation("subjectAltNames");
   }
   setField("signatureAlgorithm", forge.pki.oids[cert.signatureOid]);
-  if (forge.pki.oids[cert.signatureOid] == "sha1WithRSAEncryption") {
+  if (forge.pki.oids[cert.signatureOid] != "sha256WithRSAEncryption" &&
+      forge.pki.oids[cert.signatureOid] != "sha512WithRSAEncryption") {
     setViolation("signatureAlgorithm");
   }
   setField("keySize", cert.publicKey.n.bitLength());
@@ -105,16 +179,30 @@ function decode(pem) {
   if (cert.publicKey.e.toString() == "3") {
     setViolation("exponent");
   }
-  setField("pem", forge.pki.certificateToPem(cert));
+  document.getElementById("pem").value = forge.pki.certificateToPem(cert);
+
+  var extensionsTable = document.getElementById("extensions");
+  for (var extension of cert.extensions) {
+    var tr = document.createElement("tr");
+    var tdName = document.createElement("td");
+    tdName.textContent = ("name" in extension && extension.name.length > 0
+                          ? extension.name
+                          : extension.id) + ":";
+    tr.appendChild(tdName);
+    var tdValue = document.createElement("td");
+    tdValue.textContent = extensionToString(extension);
+    tr.appendChild(tdValue);
+    extensionsTable.appendChild(tr);
+  }
 }
 
 function decodeFromInput() {
-  let pem = document.getElementById("pem").value;
+  var pem = document.getElementById("pem").value;
   decode(pem);
 }
 
 function handleFile(file) {
-  let reader = new FileReader();
+  var reader = new FileReader();
   reader.onload = function() { decode(reader.result); };
   reader.readAsText(file);
 }
