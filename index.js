@@ -55,7 +55,7 @@ function formatSubjectAltNames(altNames) {
 
 function clearFields() {
   for (var id of ["version", "serialNumber", "signature", "issuer", "notBefore",
-                  "notAfter", "subject", "subjectAltNames",
+                  "notAfter", "subject", "subjectAltName",
                   "signatureAlgorithm", "keySize", "exponent"]) {
     setField(id, "");
     unsetViolation(id);
@@ -133,7 +133,7 @@ function extensionToString(extension) {
   }
 }
 
-function decode(pem) {
+function decode(pem, asEndEntity) {
   clearFields();
   clearExtensions();
 
@@ -147,37 +147,46 @@ function decode(pem) {
                                         "-----END CERTIFICATE-----");
   }
   setField("version", cert.version + 1);
-  if ((cert.version + 1) != 3) {
-    setViolation("version");
-  }
   setField("serialNumber", cert.serialNumber);
   setField("signature", forge.pki.oids[cert.siginfo.algorithmOid]);
   setField("issuer", formatRDN(cert.issuer));
   setField("notBefore", cert.validity.notBefore);
   setField("notAfter", cert.validity.notAfter);
-  if ((cert.validity.notAfter - cert.validity.notBefore) /
-      (1000 * 3600 * 24 * 366) > 5) {
-    setViolation("notBefore");
-    setViolation("notAfter");
-  }
   setField("subject", formatRDN(cert.subject));
-  setField("subjectAltNames",
-           formatSubjectAltNames(cert.getExtension({name: 'subjectAltName'})));
-  if (!cert.getExtension({name: 'subjectAltName'})) {
-    setViolation("subjectAltNames");
+  if (asEndEntity) {
+    setField("subjectAltName",
+      formatSubjectAltNames(cert.getExtension({name: 'subjectAltName'})));
+    document.getElementById("subjectAltNameLabel").setAttribute("class", "");
+  } else {
+    document.getElementById("subjectAltNameLabel").setAttribute("class",
+                                                                "hidden");
   }
   setField("signatureAlgorithm", forge.pki.oids[cert.signatureOid]);
-  if (forge.pki.oids[cert.signatureOid] != "sha256WithRSAEncryption" &&
-      forge.pki.oids[cert.signatureOid] != "sha512WithRSAEncryption") {
-    setViolation("signatureAlgorithm");
-  }
   setField("keySize", cert.publicKey.n.bitLength());
-  if (cert.publicKey.n.bitLength() <= 1024) {
-    setViolation("keySize");
-  }
   setField("exponent", cert.publicKey.e.toString());
-  if (cert.publicKey.e.toString() == "3") {
-    setViolation("exponent");
+
+  if (asEndEntity) {
+    if ((cert.version + 1) != 3) {
+      setViolation("version");
+    }
+    if ((cert.validity.notAfter - cert.validity.notBefore) /
+        (1000 * 3600 * 24 * 366) > 5) {
+      setViolation("notBefore");
+      setViolation("notAfter");
+    }
+    if (!cert.getExtension({name: 'subjectAltName'})) {
+      setViolation("subjectAltName");
+    }
+    if (forge.pki.oids[cert.signatureOid] != "sha256WithRSAEncryption" &&
+        forge.pki.oids[cert.signatureOid] != "sha512WithRSAEncryption") {
+      setViolation("signatureAlgorithm");
+    }
+    if (cert.publicKey.n.bitLength() <= 1024) {
+      setViolation("keySize");
+    }
+    if (cert.publicKey.e.toString() == "3") {
+      setViolation("exponent");
+    }
   }
   document.getElementById("pem").value = forge.pki.certificateToPem(cert);
 
@@ -198,13 +207,19 @@ function decode(pem) {
 
 function decodeFromInput() {
   var pem = document.getElementById("pem").value;
-  decode(pem);
+  decode(pem, true);
 }
 
 function handleFile(file) {
   var reader = new FileReader();
-  reader.onload = function() { decode(reader.result); };
+  reader.onload = function() { decode(reader.result, true); };
   reader.readAsText(file);
 }
 
-decode(location.search ? location.search.substring(1) : pem);
+window.addEventListener("message", function(evt) {
+  if (evt.origin != document.location.origin) {
+    return;
+  }
+
+  decode(evt.data.pem, evt.data.asEndEntity);
+}, false);

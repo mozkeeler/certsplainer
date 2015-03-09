@@ -5,3 +5,7 @@ td[violation=true] {
 table.fixed {
   font-family: monospace;
 }
+
+.hidden {
+  display: none;
+}
