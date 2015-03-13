@@ -118,19 +118,96 @@ function formatSubjectAltName(extension) {
   return formatSubjectAltNames(extension);
 }
 
-function extensionToString(extension) {
-  switch (extension.name) {
-    case "basicConstraints": return formatBasicConstraints(extension);
-    case "keyUsage": return formatKeyUsage(extension);
-    case "extKeyUsage": return formatExtKeyUsage(extension);
-    case "subjectKeyIdentifier": return formatSubjectKeyIdentifier(extension);
-    case "subjectAltName": return formatSubjectAltName(extension);
-    case "authorityKeyIdentifier":
-    case "certificatePolicies":
-    case "cRLDistributionPoints":
-    case "issuerAltName":
-    default: return byteStringToHex(extension.value);
+function byteStringToBytes(byteString) {
+  var bytes = [];
+  for (var i = 0; i < byteString.length; i++) {
+    bytes.push(byteString.charCodeAt(i));
   }
+  return bytes;
+}
+
+function formatAuthorityInfoAccess(extension) {
+  var accessDescriptions = ASN1.decode(byteStringToBytes(extension.value));
+  var output = "";
+  for (var i = 0; i < accessDescriptions.sub.length; i++) {
+    var accessDescription = accessDescriptions.sub[i];
+    var accessMethod = accessDescription.sub[0];
+    var accessLocation = accessDescription.sub[1];
+    output += (output ? ", " : "") + oids[accessMethod.content()].d + ": " +
+              accessLocation.content();
+  }
+  return output;
+}
+
+function formatCertificatePolicies(extension) {
+  var certificatePolicies = ASN1.decode(byteStringToBytes(extension.value));
+  var output = "";
+  for (var i = 0; i < certificatePolicies.sub.length; i++) {
+    var policyInformation = certificatePolicies.sub[i];
+    var policyIdentifier = policyInformation.sub[0];
+    output += (output ? ", " : "") +
+              oidToDescription(policyIdentifier.content());
+  }
+  return output;
+}
+
+// This really only handles DNS names
+function formatNameConstraints(extension) {
+  var nameConstraints = ASN1.decode(byteStringToBytes(extension.value));
+  var permittedSubtrees = nameConstraints.sub[0];
+  var permittedOutput = "";
+  for (var i = 0; i < permittedSubtrees.sub.length; i++) {
+    var permittedSubtree = permittedSubtrees.sub[i];
+    permittedOutput += (permittedOutput ? ", " : "") +
+                       permittedSubtrees.sub[i].sub[0].content();
+  }
+  var excludedSubtrees = nameConstraints.sub[1];
+  var excludedOutput = "";
+  for (var i = 0; i < excludedSubtrees.sub.length; i++) {
+    excludedOutput += (excludedOutput ? ", " : "") +
+                       excludedSubtrees.sub[i].sub[0].content();
+  }
+  return "permitted: " + permittedOutput + "; excluded: " + excludedOutput;
+}
+
+function extensionToString(extension) {
+  try {
+    switch (getExtensionName(extension)) {
+      case "basicConstraints": return formatBasicConstraints(extension);
+      case "keyUsage": return formatKeyUsage(extension);
+      case "extKeyUsage": return formatExtKeyUsage(extension);
+      case "subjectKeyIdentifier": return formatSubjectKeyIdentifier(extension);
+      case "subjectAltName": return formatSubjectAltName(extension);
+      case "authorityInfoAccess": return formatAuthorityInfoAccess(extension);
+      case "nameConstraints": return formatNameConstraints(extension);
+      case "certificatePolicies": return formatCertificatePolicies(extension);
+      case "authorityKeyIdentifier":
+      case "certificatePolicies":
+      case "cRLDistributionPoints":
+      case "issuerAltName":
+      default: break;
+    }
+  } catch (e) {
+    console.log(e);
+  }
+  return byteStringToHex(extension.value);
+}
+
+function oidToDescription(oidString) {
+  if (oidString in oids) {
+    return oids[oidString].d;
+  }
+  return oidString;
+}
+
+// forge.js has some OID -> name mappings, but asn1.js has more. Try the
+// former, then try the latter, then just give up and use the string
+// representation of the OID.
+function getExtensionName(extension) {
+  if ("name" in extension && extension.name.length > 0) {
+    return extension.name;
+  }
+  return oidToDescription(extension.id);
 }
 
 function decode(pem, asEndEntity) {
@@ -194,9 +271,7 @@ function decode(pem, asEndEntity) {
   for (var extension of cert.extensions) {
     var tr = document.createElement("tr");
     var tdName = document.createElement("td");
-    tdName.textContent = ("name" in extension && extension.name.length > 0
-                          ? extension.name
-                          : extension.id) + ":";
+    tdName.textContent = getExtensionName(extension);
     tr.appendChild(tdName);
     var tdValue = document.createElement("td");
     tdValue.textContent = extensionToString(extension);
