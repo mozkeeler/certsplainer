@@ -9,3 +9,9 @@ cd forge
 npm install
 npm run bundle
 ```
+
+Also requires [lapo-luchini/asn1js](https://github.com/lapo-luchini/asn1js):
+
+```
+git clone https://github.com/lapo-luchini/asn1js
+```
