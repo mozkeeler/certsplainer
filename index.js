@@ -292,7 +292,7 @@ function handleFile(file) {
 }
 
 window.addEventListener("message", function(evt) {
-  if (evt.origin != document.location.origin) {
+  if (evt.origin != document.location.origin || !evt.data.pem) {
     return;
   }
 
