@@ -140,6 +140,14 @@ function formatAuthorityInfoAccess(extension) {
   return output;
 }
 
+function forgeRDNArrayToString(rdn) {
+  var output = "";
+  for (var i in rdn) {
+    output = output + "/" + rdn[i].shortName + "=" + rdn[i].value;
+  }
+  return output;
+}
+
 function formatCRLDistributionPoints(extension) {
   var distributionPoints = ASN1.decode(byteStringToBytes(extension.value));
   var output = "";
@@ -148,7 +156,19 @@ function formatCRLDistributionPoints(extension) {
     var distributionPoint = distributionPointData.sub[0];
     for (var j = 0; j < distributionPoint.sub[0].sub.length; j++) {
       var name = distributionPoint.sub[0].sub[j];
-      output += (output ? ", " : "") + name.content();
+      // This basically assumes this is an RDN - whether or not it actually
+      // is should probably be verified by checking an ASN.1 tag or something.
+      if (name.sub) {
+        var data = "";
+        for (var k = name.sub[0].posStart(); k < name.sub[0].posEnd(); k++) {
+          data += String.fromCharCode(name.sub[0].stream.enc[k]);
+        }
+        var asn1 = forge.asn1.fromDer(data);
+        output += (output ? ", " : "") +
+               forgeRDNArrayToString(forge.pki.RDNAttributesAsArray(asn1));
+      } else {
+        output += (output ? ", " : "") + name.content();
+      }
     }
   }
   return output;
