@@ -102,7 +102,8 @@ function formatKeyUsage(extension) {
 
 function formatExtKeyUsage(extension) {
   var result = "";
-  for (var usage of ["serverAuth"]) {
+  for (var usage of ["serverAuth", "clientAuth", "codeSigning",
+                     "emailProtection", "timeStamping", "OCSPSigning"]) {
     if (extension[usage]) {
       result += (result.length > 0 ? ", " : "") + usage;
     }
@@ -139,6 +140,20 @@ function formatAuthorityInfoAccess(extension) {
   return output;
 }
 
+function formatCRLDistributionPoints(extension) {
+  var distributionPoints = ASN1.decode(byteStringToBytes(extension.value));
+  var output = "";
+  for (var i = 0; i < distributionPoints.sub.length; i++) {
+    var distributionPointData = distributionPoints.sub[i];
+    var distributionPoint = distributionPointData.sub[0];
+    for (var j = 0; j < distributionPoint.sub[0].sub.length; j++) {
+      var name = distributionPoint.sub[0].sub[j];
+      output += (output ? ", " : "") + name.content();
+    }
+  }
+  return output;
+}
+
 function formatCertificatePolicies(extension) {
   var certificatePolicies = ASN1.decode(byteStringToBytes(extension.value));
   var output = "";
@@ -170,6 +185,12 @@ function formatNameConstraints(extension) {
   return "permitted: " + permittedOutput + "; excluded: " + excludedOutput;
 }
 
+function formatAuthorityKeyIdentifier(extension) {
+  var authorityKeyIdentifier = ASN1.decode(byteStringToBytes(extension.value));
+  return authorityKeyIdentifier.sub[0].content().replace(/\(20 byte\)\W/, "")
+                                                .toLowerCase();
+}
+
 function extensionToString(extension) {
   try {
     switch (getExtensionName(extension)) {
@@ -181,9 +202,9 @@ function extensionToString(extension) {
       case "authorityInfoAccess": return formatAuthorityInfoAccess(extension);
       case "nameConstraints": return formatNameConstraints(extension);
       case "certificatePolicies": return formatCertificatePolicies(extension);
-      case "authorityKeyIdentifier":
+      case "authorityKeyIdentifier": return formatAuthorityKeyIdentifier(extension);
+      case "cRLDistributionPoints": return formatCRLDistributionPoints(extension);
       case "certificatePolicies":
-      case "cRLDistributionPoints":
       case "issuerAltName":
       default: break;
     }
