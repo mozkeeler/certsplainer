@@ -280,8 +280,21 @@ function decode(pem, asEndEntity) {
                                                                 "hidden");
   }
   setField("signatureAlgorithm", forge.pki.oids[cert.signatureOid]);
-  setField("keySize", cert.publicKey.n.bitLength());
-  setField("exponent", cert.publicKey.e.toString());
+  if ("n" in cert.publicKey) {
+    setField("keySize", cert.publicKey.n.bitLength());
+    setField("exponent", cert.publicKey.e.toString());
+    setField("curve", "");
+    document.getElementById("keySizeLabel").setAttribute("class", "");
+    document.getElementById("exponentLabel").setAttribute("class", "");
+    document.getElementById("curveLabel").setAttribute("class", "hidden");
+  } else {
+    setField("keySize", "");
+    setField("exponent", "");
+    setField("curve", forge.pki.oids[cert.publicKey.curve]);
+    document.getElementById("keySizeLabel").setAttribute("class", "hidden");
+    document.getElementById("exponentLabel").setAttribute("class", "hidden");
+    document.getElementById("curveLabel").setAttribute("class", "");
+  }
 
   if (asEndEntity) {
     if ((cert.version + 1) != 3) {
@@ -296,13 +309,15 @@ function decode(pem, asEndEntity) {
       setViolation("subjectAltName");
     }
     if (forge.pki.oids[cert.signatureOid] != "sha256WithRSAEncryption" &&
-        forge.pki.oids[cert.signatureOid] != "sha512WithRSAEncryption") {
+        forge.pki.oids[cert.signatureOid] != "sha512WithRSAEncryption" &&
+        forge.pki.oids[cert.signatureOid] != "ecdsaWithSHA256" &&
+        forge.pki.oids[cert.signatureOid] != "ecdsaWithSHA384") {
       setViolation("signatureAlgorithm");
     }
-    if (cert.publicKey.n.bitLength() <= 1024) {
+    if ("n" in cert.publicKey && cert.publicKey.n.bitLength() <= 1024) {
       setViolation("keySize");
     }
-    if (cert.publicKey.e.toString() == "3") {
+    if ("e" in cert.publicKey && cert.publicKey.e.toString() == "3") {
       setViolation("exponent");
     }
   }
