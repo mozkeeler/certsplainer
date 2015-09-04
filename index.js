@@ -261,8 +261,8 @@ function decode(pem, asEndEntity) {
   } catch (e) {}
   // Try with the BEGIN/END wrappers if the above failed
   if (!cert) {
-    cert = forge.pki.certificateFromPem("-----BEGIN CERTIFICATE-----" + pem +
-                                        "-----END CERTIFICATE-----");
+    pem = "-----BEGIN CERTIFICATE-----" + pem + "-----END CERTIFICATE-----";
+    cert = forge.pki.certificateFromPem(pem);
   }
   setField("version", cert.version + 1);
   setField("serialNumber", cert.serialNumber);
@@ -321,7 +321,7 @@ function decode(pem, asEndEntity) {
       setViolation("exponent");
     }
   }
-  document.getElementById("pem").value = forge.pki.certificateToPem(cert);
+  document.getElementById("pem").value = pem;
 
   var extensionsTable = document.getElementById("extensions");
   for (var extension of cert.extensions) {
