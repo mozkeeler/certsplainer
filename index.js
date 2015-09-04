@@ -251,6 +251,24 @@ function getExtensionName(extension) {
   return oidToDescription(extension.id);
 }
 
+function hashPEM(pem, algorithm) {
+  var der = atob(pem.replace(/-----BEGIN CERTIFICATE-----/, "")
+                    .replace(/-----END CERTIFICATE-----/, "")
+                    .replace(/[\r\n]/g, ""));
+  var digest;
+  if (algorithm == "sha1") {
+    digest = forge.md.sha1.create();
+  } else if (algorithm == "sha256") {
+    digest = forge.md.sha256.create();
+  } else {
+    throw "unsupported hash algorithm: " + algorithm;
+  }
+  digest.start();
+  digest.update(der);
+  var hash = digest.digest();
+  return hash.toHex().replace(/.{2}/g, "$&:").slice(0, -1).toUpperCase();
+}
+
 function decode(pem, asEndEntity) {
   clearFields();
   clearExtensions();
@@ -321,6 +339,8 @@ function decode(pem, asEndEntity) {
       setViolation("exponent");
     }
   }
+  document.getElementById("sha1hash").textContent = hashPEM(pem, "sha1");
+  document.getElementById("sha256hash").textContent = hashPEM(pem, "sha256");
   document.getElementById("pem").value = pem;
 
   var extensionsTable = document.getElementById("extensions");
