@@ -202,21 +202,31 @@ function formatCertificatePolicies(extension) {
 
 // This really only handles DNS names
 function formatNameConstraints(extension) {
+  var result = "";
   var nameConstraints = ASN1.decode(byteStringToBytes(extension.value));
   var permittedSubtrees = nameConstraints.sub[0];
-  var permittedOutput = "";
-  for (var i = 0; i < permittedSubtrees.sub.length; i++) {
-    var permittedSubtree = permittedSubtrees.sub[i];
-    permittedOutput += (permittedOutput ? ", " : "") +
-                       permittedSubtrees.sub[i].sub[0].content();
+  if (permittedSubtrees && permittedSubtrees.tag.tagNumber == 0) {
+    var permittedOutput = "";
+    for (var i = 0; i < permittedSubtrees.sub.length; i++) {
+      var permittedSubtree = permittedSubtrees.sub[i];
+      permittedOutput += (permittedOutput ? ", " : "") +
+                         permittedSubtrees.sub[i].sub[0].content();
+    }
+    result += "permitted: " + permittedOutput;
   }
-  var excludedSubtrees = nameConstraints.sub[1];
-  var excludedOutput = "";
-  for (var i = 0; i < excludedSubtrees.sub.length; i++) {
-    excludedOutput += (excludedOutput ? ", " : "") +
-                       excludedSubtrees.sub[i].sub[0].content();
+  var excludedSubtrees =
+    (permittedSubtrees && permittedSubtrees.tag.tagNumber == 0
+      ? nameConstraints.sub[1]
+      : permittedSubtrees);
+  if (excludedSubtrees && excludedSubtrees.tag.tagNumber == 1) {
+    var excludedOutput = "";
+    for (var i = 0; i < excludedSubtrees.sub.length; i++) {
+      excludedOutput += (excludedOutput ? ", " : "") +
+                         excludedSubtrees.sub[i].sub[0].content();
+    }
+    result += (result ? "; " : "") + "excluded: " + excludedOutput;
   }
-  return "permitted: " + permittedOutput + "; excluded: " + excludedOutput;
+  return result;
 }
 
 function formatAuthorityKeyIdentifier(extension) {
