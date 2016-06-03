@@ -100,15 +100,29 @@ function formatKeyUsage(extension) {
   return result;
 }
 
-function formatExtKeyUsage(extension) {
-  var result = "";
-  for (var usage of ["serverAuth", "clientAuth", "codeSigning",
-                     "emailProtection", "timeStamping", "OCSPSigning"]) {
-    if (extension[usage]) {
-      result += (result.length > 0 ? ", " : "") + usage;
-    }
+// special-case msSGC and nsSGC for display purposes
+function formatEKUOID(ekuOID) {
+  if (ekuOID == "1.3.6.1.4.1.311.10.3.3") {
+    return "msSGC";
   }
-  return result;
+  if (ekuOID == "2.16.840.1.113730.4.1") {
+    return "nsSGC";
+  }
+  return ekuOID;
+}
+
+function formatExtKeyUsage(extension) {
+  var skip = ["id", "critical", "value", "name"];
+  var output = "";
+  Object.keys(extension).forEach(function(key) {
+    if (skip.indexOf(key) != -1) {
+      return;
+    }
+    if (extension[key]) {
+      output += (output ? ", " : "") + formatEKUOID(key);
+    }
+  });
+  return output;
 }
 
 function formatSubjectKeyIdentifier(extension) {
